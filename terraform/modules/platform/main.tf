@@ -39,12 +39,6 @@ module "eks" {
   depends_on              = [module.iam]
 }
 
-module "ecr" {
-  source = "../ecr"
-  name   = "${local.name}-app"
-  tags   = local.tags
-}
-
 module "addons" {
   source          = "../addons"
   cluster_name    = module.eks.cluster_name

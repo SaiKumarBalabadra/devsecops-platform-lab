@@ -9,7 +9,7 @@ A runnable platform-engineering portfolio lab: a small FastAPI service, hardened
 ```mermaid
 flowchart LR
   Dev[Developer] -->|pytest / Ruff / Trivy| CI[GitHub Actions or Jenkins]
-  CI -->|build, scan, publish on main| Registry[GHCR or ECR]
+  CI -->|build, scan, publish on main| GHCR[GitHub Container Registry]
   CI -->|commit immutable image tag| Git[GitOps configuration]
   Git --> Argo[Argo CD]
   Argo --> K8s[Kubernetes: Helm release]
@@ -18,7 +18,7 @@ flowchart LR
   Grafana[Grafana dashboard and alerts] --> Prom
   App -->|JSON stdout| Alloy[Grafana Alloy]
   Alloy --> Loki[Loki]
-  TF[Terraform modules] --> AWS[AWS VPC, IAM, EKS, ECR]
+  TF[Terraform modules] --> AWS[AWS VPC, IAM, EKS]
 ```
 
 The default local workflow does not start a Kubernetes cluster or observability stack. `docker compose up --build` runs only the application and binds it to loopback (`127.0.0.1:8000`). The workload requires no Kubernetes API permissions; its ServiceAccount token is not mounted. The separate diagnostics Role is opt-in.
@@ -72,7 +72,7 @@ Configuration is environment-based. Important settings are `APP_NAME`, `APP_ENV`
 | `kubernetes/policies/`, `kubernetes/rbac/` | Kyverno admission policy and optional namespace-scoped diagnostics reader |
 | `gitops/argocd/` | Argo CD project and dev/staging/prod Applications |
 | `jenkins/`, `.github/workflows/` | Jenkins declarative pipeline and GitHub Actions |
-| `terraform/modules/`, `terraform/environments/` | VPC, IAM, EKS, ECR, add-ons and environment roots |
+| `terraform/modules/`, `terraform/environments/` | VPC, IAM, EKS, add-ons and environment roots |
 | `observability/` | Prometheus configuration/alerts, Grafana dashboard, Alloy and OTel examples |
 | `scripts/`, `docs/` | Local deployment, validation, diagnostics, security and operations guides |
 
@@ -84,7 +84,7 @@ The image pins Python 3.12.15 on Alpine 3.23 by digest, applies distribution upd
 
 Kubernetes defaults include non-root execution, seccomp `RuntimeDefault`, read-only root filesystem, dropped capabilities, disabled privilege escalation, resource requests/limits, a tokenless ServiceAccount, NetworkPolicy, and immutable-style version tags. Kyverno policies are examples and must be installed/validated against the actual Kyverno version and cluster policy lifecycle before enforcement.
 
-Secrets are not stored in values or manifests. The optional External Secrets template expects an installed External Secrets Operator and a preconfigured SecretStore/ClusterSecretStore; `values.yaml` leaves it disabled. CI credentials use Jenkins credential IDs or GitHub's short-lived `GITHUB_TOKEN`; never echo tokens. ECR uses immutable tags and scan-on-push. Prefer commit-SHA tags and registry-supported signatures/attestations for release provenance; digest pinning gives the strongest deployment immutability.
+Secrets are not stored in values or manifests. The optional External Secrets template expects an installed External Secrets Operator and a preconfigured SecretStore/ClusterSecretStore; `values.yaml` leaves it disabled. CI credentials use Jenkins credential IDs or GitHub's short-lived `GITHUB_TOKEN`; never echo tokens. GHCR is the application image registry; use commit-SHA tags and configure package access/retention and provenance controls for release images. Private GHCR images also require Kubernetes pull credentials configured securely in the target cluster.
 
 Threat considerations and integration boundaries are in [docs/security-model.md](docs/security-model.md).
 
@@ -119,7 +119,7 @@ See [docs/sre-slo-error-budget.md](docs/sre-slo-error-budget.md) and [docs/runbo
 
 ## Terraform and AWS
 
-`terraform/modules/` contains composable network, IAM, EKS, ECR, add-on modules and a platform composition module. Dev/staging/prod roots have separate sizing examples. AWS region and credentials are supplied externally through the standard AWS credential chain and `TF_VAR_region`; there are no embedded account IDs, tokens, or AWS credentials.
+`terraform/modules/` contains composable network, IAM, EKS, add-on modules and a platform composition module. The app image is published to GHCR; Terraform does not create an application image repository. Dev/staging/prod roots have separate sizing examples. AWS region and credentials are supplied externally through the standard AWS credential chain and `TF_VAR_region`; there are no embedded account IDs, tokens, or AWS credentials.
 
 ```bash
 cd terraform/environments/dev
@@ -132,13 +132,13 @@ terraform plan -out=dev.tfplan
 
 Planning contacts AWS and requires valid credentials; do not apply the plan without explicit authorization and a reviewed cost/security plan. State examples use a pre-created encrypted, versioned S3 bucket and native S3 lockfile (`use_lockfile = true`). Copy the appropriate `backend.tf.example` to `backend.tf` only after the state bucket and access policy are created through an approved process. Protect and back up state; state may contain sensitive infrastructure metadata.
 
-The defaults use a private-only EKS API endpoint, private worker subnets, encrypted Kubernetes secrets with a rotating customer-managed KMS key, one NAT gateway in dev (lower cost, reduced AZ resilience), multiple NAT gateways in staging/prod, and non-zero worker counts. EKS/NAT/KMS/ECR/logging costs are real. Review the Terraform plan before any future apply. Full steps and teardown warnings: [docs/terraform-aws-deployment.md](docs/terraform-aws-deployment.md).
+The defaults use a private-only EKS API endpoint, private worker subnets, encrypted Kubernetes secrets with a rotating customer-managed KMS key, one NAT gateway in dev (lower cost, reduced AZ resilience), multiple NAT gateways in staging/prod, and non-zero worker counts. EKS/NAT/KMS/logging costs are real. Review the Terraform plan before any future apply. Full steps and teardown warnings: [docs/terraform-aws-deployment.md](docs/terraform-aws-deployment.md).
 
 ## Cleanup
 
 - **Local Compose:** run `make down`. This stops/removes the Compose container/network but keeps the image; remove only this lab image if desired with `docker image rm platform-demo:local`.
 - **Local Kubernetes:** inspect the current context first, then remove the lab release with `helm uninstall platform-demo --namespace platform-demo`. This does not remove the namespace or cluster.
-- **AWS:** no resources were created by this lab. A future deployment requires explicit authorization and a reviewed environment-specific `terraform plan -destroy`; deleting EKS, NAT gateways, ECR images, or KMS keys can disrupt services, lose data, and incur costs until completion. Preserve the separately managed Terraform state bucket and backups. See [docs/terraform-aws-deployment.md](docs/terraform-aws-deployment.md).
+- **AWS:** no resources were created by this lab. A future deployment requires explicit authorization and a reviewed environment-specific `terraform plan -destroy`; deleting EKS, NAT gateways, or KMS keys can disrupt services, lose data, and incur costs until completion. Preserve the separately managed Terraform state bucket and backups. See [docs/terraform-aws-deployment.md](docs/terraform-aws-deployment.md).
 
 ## Troubleshooting
 

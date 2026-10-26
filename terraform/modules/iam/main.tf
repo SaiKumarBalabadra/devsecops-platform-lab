@@ -46,6 +46,7 @@ resource "aws_iam_role_policy_attachment" "node_cni" {
 }
 
 resource "aws_iam_role_policy_attachment" "node_registry" {
-  role       = aws_iam_role.nodes.name
+  role = aws_iam_role.nodes.name
+  # EKS nodes use this to pull AWS-hosted system and managed add-on images.
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }

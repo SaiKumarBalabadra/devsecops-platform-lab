@@ -6,7 +6,7 @@
 - **Local runtime:** Docker Compose builds one container; only loopback port 8000 is published. It has a read-only root filesystem, no added capabilities, and no external services.
 - **Cluster runtime:** Helm creates a Deployment, ClusterIP Service, tokenless ServiceAccount, ConfigMap, probes, resource controls, NetworkPolicy, and optional HPA/PDB/Ingress/ResourceQuota/LimitRange/ExternalSecret.
 - **Delivery:** CI validates and scans. Publishing is limited to a commit-SHA tag from main. Argo CD watches Git and reconciles environment-specific Helm values.
-- **Infrastructure:** Environment roots compose reusable VPC, IAM, EKS, ECR, and add-on modules. A private cluster endpoint is the default.
+- **Infrastructure:** Environment roots compose reusable VPC, IAM, EKS, and add-on modules. Application images are published to GHCR; the cluster's node role retains read-only ECR access for AWS-hosted EKS system and managed add-on images. A private cluster endpoint is the default.
 - **Operations:** Prometheus rules and Grafana dashboard cover golden signals and workload health. Alloy/Loki and OpenTelemetry are optional templates.
 
 ## Trust boundaries

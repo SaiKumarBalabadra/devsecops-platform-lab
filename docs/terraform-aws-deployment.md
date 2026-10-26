@@ -24,12 +24,13 @@ No AWS credentials are needed for `validate`, but initialization downloads provi
 ## Module layout
 
 - `modules/vpc`: VPC, public/private subnets, internet/NAT gateways, routes.
-- `modules/iam`: EKS control-plane and node roles with AWS-managed baseline policies.
+- `modules/iam`: EKS control-plane and node roles with AWS-managed baseline policies, including read-only ECR access required for AWS-hosted EKS system and managed add-on images.
 - `modules/eks`: private endpoint EKS cluster, managed node group, audit/control-plane logs.
-- `modules/ecr`: immutable repository, scan-on-push, untagged image lifecycle policy.
 - `modules/addons`: VPC CNI, CoreDNS, kube-proxy managed add-ons.
 - `modules/platform`: composition and common tags.
 - `environments/{dev,staging,prod}`: sizing and network examples.
+
+Application container images are published to GHCR; this Terraform stack does not create an application image repository. For private GHCR packages, configure Kubernetes image-pull credentials through an approved secret-management process. Do not commit those credentials to Helm values or manifests.
 
 The sample node role uses AWS-managed EKS worker policies for clarity; production deployments should move VPC CNI permissions to a dedicated IRSA/EKS Pod Identity role, review all managed policy permissions, and configure add-on versions supported by the target cluster/region. EKS Kubernetes Secrets are encrypted with a rotating customer-managed KMS key; the key has a 30-day deletion window and incurs KMS charges.
 
@@ -39,4 +40,4 @@ The EKS API public endpoint is disabled by default. Use an approved private netw
 
 ## Cleanup and cost warning
 
-This repository created no AWS resources. If an authorized deployment is later made, inventory state and dependencies, then create an environment-scoped `terraform plan -destroy -out=cleanup.tfplan` for review. Apply only after explicit change approval. EKS, NAT gateways, KMS keys, logging, and ECR storage can incur charges; deletion can cause data loss or outages. Never delete a shared state bucket as part of application-environment cleanup.
+This repository created no AWS resources. If an authorized deployment is later made, inventory state and dependencies, then create an environment-scoped `terraform plan -destroy -out=cleanup.tfplan` for review. Apply only after explicit change approval. EKS, NAT gateways, KMS keys, and logging can incur charges; deletion can cause data loss or outages. Never delete a shared state bucket as part of application-environment cleanup.

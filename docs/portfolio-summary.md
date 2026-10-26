@@ -12,7 +12,7 @@ Designed a reproducible platform reference that carries a Python service from lo
 - Built a multi-stage non-root container and a minimal local Docker Compose experience.
 - Packaged the app in a hardened Helm chart with probes, resource governance, autoscaling, disruption budget, optional ingress, NetworkPolicy, External Secrets hooks, and environment overlays.
 - Added CI examples for Jenkins and GitHub Actions, plus Argo CD promotion/rollback patterns.
-- Authored reusable AWS Terraform modules for VPC/subnets, IAM, EKS, encrypted cluster secrets, ECR, and managed add-ons, separated by environment.
+- Authored reusable AWS Terraform modules for VPC/subnets, IAM, EKS, encrypted cluster secrets, and managed add-ons, separated by environment. Application images are published to GHCR.
 - Added admission policy/RBAC examples, scan gates, alert rules, dashboard queries, SLO guidance, and incident runbooks.
 
 ### Security and operations stance
