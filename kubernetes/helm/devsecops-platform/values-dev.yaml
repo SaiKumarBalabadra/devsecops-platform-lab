@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  tag: "52b684141902f7f64b5c1bdf5271c9e5aee8e8f8"
+  tag: "6311be9ae8efb245dca473253f7afe7bc5b2d4a6"
 config:
   appEnv: development
   logLevel: DEBUG
