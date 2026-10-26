@@ -1,0 +1,94 @@
+pipeline {
+  agent any
+  options {
+    disableConcurrentBuilds()
+    timestamps()
+    timeout(time: 30, unit: 'MINUTES')
+  }
+  environment {
+    IMAGE = ("ghcr.io/${env.GITHUB_REPOSITORY ?: 'example-org/platform-demo'}").toLowerCase()
+    IMAGE_TAG = "${env.GIT_COMMIT ?: 'local'}"
+  }
+  stages {
+    stage('Checkout and validate') {
+      steps {
+        checkout scm
+        sh 'python3 -m pip install --user -r requirements-dev.txt'
+        sh 'helm lint kubernetes/helm/devsecops-platform -f kubernetes/helm/devsecops-platform/values-dev.yaml'
+        sh 'terraform fmt -check -recursive terraform'
+      }
+    }
+    stage('Unit and integration tests') {
+      steps {
+        sh 'python3 -m pytest --junitxml=junit.xml'
+      }
+    }
+    stage('Code quality integration') {
+      steps {
+        sh 'ruff check app tests'
+        script {
+          if (env.SONARQUBE_ENVIRONMENT && fileExists('sonar-project.properties')) {
+            withSonarQubeEnv(env.SONARQUBE_ENVIRONMENT) {
+              sh 'sonar-scanner'
+            }
+          } else {
+            echo 'SonarQube is optional; configure SONARQUBE_ENVIRONMENT and sonar-scanner to enable.'
+          }
+        }
+      }
+    }
+    stage('Dependency and filesystem security') {
+      steps {
+        sh 'trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --exit-code 1 .'
+      }
+    }
+    stage('Build and scan container') {
+      steps {
+        sh 'docker build -f docker/Dockerfile -t $IMAGE:$IMAGE_TAG .'
+        sh 'trivy image --severity HIGH,CRITICAL --exit-code 1 $IMAGE:$IMAGE_TAG'
+      }
+    }
+    stage('Publish immutable image') {
+      when { branch 'main' }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'container-registry', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_TOKEN')]) {
+          sh '''
+            set +x
+            printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
+            docker push "$IMAGE:$IMAGE_TAG"
+          '''
+        }
+      }
+    }
+    stage('Validate deployment and update GitOps') {
+      steps {
+        sh 'helm template platform-demo kubernetes/helm/devsecops-platform -f kubernetes/helm/devsecops-platform/values-dev.yaml > /tmp/platform-rendered.yaml'
+        script {
+          if (env.BRANCH_NAME == 'main' && env.GITOPS_PUSH_CREDENTIALS) {
+            withCredentials([gitUsernamePassword(credentialsId: env.GITOPS_PUSH_CREDENTIALS, gitToolName: 'Default')]) {
+              sh '''
+                set +x
+                bash scripts/promote.sh dev "$IMAGE_TAG"
+                git config user.name "jenkins"
+                git config user.email "jenkins@users.noreply.github.com"
+                git add kubernetes/helm/devsecops-platform/values-dev.yaml
+                if ! git diff --cached --quiet; then
+                  git commit -m "chore(gitops): promote $IMAGE_TAG to dev"
+                  git push origin HEAD:main
+                fi
+              '''
+            }
+          } else {
+            echo 'GitOps promotion requires the main branch and configured write credentials.'
+          }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      sh 'docker logout ghcr.io >/dev/null 2>&1 || true'
+      junit allowEmptyResults: true, testResults: 'junit.xml'
+    }
+  }
+}

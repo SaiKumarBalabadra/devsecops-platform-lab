@@ -1,0 +1,29 @@
+replicaCount: 3
+image:
+  tag: "0.1.0"
+config:
+  appEnv: production
+  logLevel: WARNING
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+quota:
+  enabled: true
+  requestsCpu: "8"
+  requestsMemory: 8Gi
+  limitsCpu: "16"
+  limitsMemory: 16Gi
+  pods: "40"
+limitRange:
+  enabled: true
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi

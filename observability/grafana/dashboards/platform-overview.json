@@ -1,0 +1,52 @@
+{
+  "title": "Platform Demo - Golden Signals",
+  "uid": "platform-demo-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "all requests", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "title": "5xx error ratio",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001)", "legendFormat": "error ratio", "refId": "A" }]
+    },
+    {
+      "id": 3,
+      "title": "Request latency p95 (seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "title": "Container CPU cores",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{ "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~\"platform-demo-.*\",container!=\"\"}[5m]))", "legendFormat": "{{pod}}", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "title": "Container memory (bytes)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [{ "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=~\"platform-demo-.*\",container!=\"\"})", "legendFormat": "{{pod}}", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "title": "Active requests",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [{ "expr": "sum(http_requests_in_progress)", "legendFormat": "in progress", "refId": "A" }]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+"""Platform demo application."""

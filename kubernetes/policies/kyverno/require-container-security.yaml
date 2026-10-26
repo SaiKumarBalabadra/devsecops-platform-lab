@@ -1,0 +1,59 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-container-security
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: disallow-privileged-and-root
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: Containers must not be privileged and must run as non-root.
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+            containers:
+              - securityContext:
+                  privileged: false
+                  allowPrivilegeEscalation: false
+                  runAsNonRoot: true
+    - name: require-resource-limits
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: Every container must define CPU and memory requests and limits.
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              resources:
+                requests:
+                  cpu: "?*"
+                  memory: "?*"
+                limits:
+                  cpu: "?*"
+                  memory: "?*"
+    - name: disallow-latest
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: Container images must use an explicit non-latest tag or digest.
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: EndsWith
+                    value: ":latest"
+                  - key: "{{ element.image }}"
+                    operator: NotMatches
+                    value: "^[^@]+(:[A-Za-z0-9_.-]+|@sha256:[a-f0-9]{64})$"

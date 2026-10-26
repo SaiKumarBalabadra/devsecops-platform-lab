@@ -1,0 +1,17 @@
+replicaCount: 1
+image:
+  tag: "0.1.0"
+config:
+  appEnv: development
+  logLevel: DEBUG
+autoscaling:
+  enabled: false
+podDisruptionBudget:
+  enabled: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi

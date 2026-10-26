@@ -1,0 +1,98 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/example-org/platform-demo
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+config:
+  appName: platform-demo
+  appEnv: development
+  appVersion: "0.1.0"
+  gitCommit: unknown
+  logLevel: INFO
+  metricsEnabled: "true"
+
+containerPort: 8000
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  startup:
+    enabled: true
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    path: /health
+    initialDelaySeconds: 0
+    periodSeconds: 10
+  readiness:
+    path: /ready
+    initialDelaySeconds: 0
+    periodSeconds: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: platform.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+  monitoringNamespaceSelector:
+    kubernetes.io/metadata.name: monitoring
+
+quota:
+  enabled: false
+  requestsCpu: "2"
+  requestsMemory: 2Gi
+  limitsCpu: "4"
+  limitsMemory: 4Gi
+  pods: "20"
+
+limitRange:
+  enabled: false
+
+externalSecret:
+  enabled: false
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  refreshInterval: 1h
+  remoteKey: platform-demo
+  targetName: platform-demo-secrets
+  data: []

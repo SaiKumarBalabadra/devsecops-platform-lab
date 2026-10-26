@@ -1,0 +1,49 @@
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.relabel "platform_pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    regex         = "platform-demo-.*"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+}
+
+loki.source.kubernetes "platform_pods" {
+  targets    = discovery.relabel.platform_pods.output
+  forward_to = [loki.process.platform_json.receiver]
+}
+
+loki.process "platform_json" {
+  stage.json {
+    expressions = {
+      level   = "level",
+      logger  = "logger",
+      message = "message",
+    }
+  }
+  stage.labels {
+    values = {
+      level  = "",
+      logger = "",
+    }
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,15 @@
+{{- if .Values.limitRange.enabled }}
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "devsecops-platform.fullname" . }}
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+{{- end }}

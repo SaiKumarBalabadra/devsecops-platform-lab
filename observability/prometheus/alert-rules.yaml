@@ -1,0 +1,43 @@
+groups:
+  - name: platform-demo-sli
+    rules:
+      - alert: PlatformDemoHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Platform service 5xx ratio is above 5%
+          runbook: docs/runbooks/elevated-5xx-errors.md
+      - alert: PlatformDemoHighP95Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Platform service p95 latency is above 500 ms
+          runbook: docs/runbooks/high-latency.md
+  - name: platform-demo-workloads
+    rules:
+      - alert: PlatformDemoContainerRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace=~"platform-demo-.*"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Platform demo container restarted
+          runbook: docs/runbooks/crashloopbackoff.md
+      - alert: PlatformDemoReplicasUnavailable
+        expr: |
+          kube_deployment_status_replicas_available{namespace=~"platform-demo-.*"}
+          < kube_deployment_spec_replicas{namespace=~"platform-demo-.*"}
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Desired platform demo replicas are unavailable
+          runbook: docs/runbooks/incident-response.md
